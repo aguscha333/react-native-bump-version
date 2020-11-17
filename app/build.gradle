@@ -171,7 +171,7 @@ android {
             applicationIdSuffix '.dev'
             minSdkVersion rootProject.ext.minSdkVersion
             targetSdkVersion rootProject.ext.targetSdkVersion
-            versionCode 51 // dev
+            versionCode 60 // dev
             versionName "1.0.3" // dev
 
         }

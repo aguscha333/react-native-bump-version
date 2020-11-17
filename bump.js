@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 
 const fs = require('fs')
-const chalk = require('chalk')
 
 const configMap = new Map([
   ['androidPath', './android/app/build.gradle'],
   ['iosPath', './ios/MyApp/Info.plist'],
 ])
 
-const IOS_VERSION_NUMBER_REGEX = /\<key\>CFBundleShortVersionString\<\/key\>\n\s+\<string\>(.+)\<\/string\>/m
-const IOS_BUILD_NUMBER_REGEX = /\<key\>CFBundleVersion\<\/key\>\n\s+\<string\>(.+)\<\/string\>/m
+const IOS_VERSION_NUMBER_REGEX = /<key>CFBundleShortVersionString<\/key>\n\s+<string>(.+)<\/string>/m
+const IOS_BUILD_NUMBER_REGEX = /<key>CFBundleVersion<\/key>\n\s+<string>(.+)<\/string>/m
 
 function getAndroidVersionNameRegex(env) {
   return new RegExp(`versionName "([.|\\d]+)" // ${env}`)
@@ -23,18 +22,18 @@ function getAndroidVersionCode(env) {
   const file = fs.readFileSync(configMap.get('androidPath'), 'utf8')
   const [currentLine] = file.match(getAndroidVersionCodeRegex(env))
   const [current] = currentLine.match(/\d+/)
-  return parseInt(current)
+  return parseInt(current, 0)
 }
 
 function getIosVersion() {
   const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
-  const [_, current] = file.match(IOS_VERSION_NUMBER_REGEX)
+  const [, current] = file.match(IOS_VERSION_NUMBER_REGEX)
   return current
 }
 function getIosBuild() {
   const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
-  const [_, current] = file.match(IOS_BUILD_NUMBER_REGEX)
-  return parseInt(current)
+  const [, current] = file.match(IOS_BUILD_NUMBER_REGEX)
+  return parseInt(current, 0)
 }
 
 function android(env, next) {
@@ -48,9 +47,8 @@ function android(env, next) {
   )
   fs.writeFileSync(configMap.get('androidPath'), updated, 'utf8')
 
-  console.log(
-    chalk.green(`Android SUCCESS! new version is ${next} with version code ${nextVersionCode}`),
-  )
+  // eslint-disable-next-line no-console
+  console.log(`Android SUCCESS! new version is ${next} with version code ${nextVersionCode}`)
 }
 
 function ios(next) {
@@ -64,17 +62,20 @@ function ios(next) {
   )
   updated = updated.replace(
     IOS_BUILD_NUMBER_REGEX,
-    `<key\>CFBundleVersion\<\/key\>\n  <string>${nextBuild}</string>`,
+    `<key>CFBundleVersion</key>\n  <string>${nextBuild}</string>`,
   )
   fs.writeFileSync(configMap.get('iosPath'), updated, 'utf8')
 
-  console.log(chalk.green(`iOS SUCCESS! new version is ${next} with build number ${nextBuild}`))
+  // eslint-disable-next-line no-console
+  console.log(`iOS SUCCESS! new version is ${next} with build number ${nextBuild}`)
 }
 
 function configure(env, configFilePath = `${process.cwd()}/rnbv.config.js`) {
   if (fs.existsSync(configFilePath)) {
+    // eslint-disable-next-line import/no-dynamic-require
     const config = require(`${process.cwd()}/rnbv.config.js`)
-    for (key of configMap.keys()) {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const key of configMap.keys()) {
       if (config[`${key}-${env}`] || config[key]) {
         configMap.set(key, config[`${key}-${env}`] || config[key])
       }
