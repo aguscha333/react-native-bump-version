@@ -131,8 +131,6 @@ android {
         applicationId "com.myapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.1"
     }
     splits {
         abi {
@@ -160,6 +158,36 @@ android {
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+    productFlavors {
+        prod {
+            minSdkVersion rootProject.ext.minSdkVersion
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 12 // prod
+            versionName "0.8.0" // prod
+        }
+        dev {
+            applicationIdSuffix '.dev'
+            minSdkVersion rootProject.ext.minSdkVersion
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 51 // dev
+            versionName "1.0.3" // dev
+
+        }
+        qa {
+            applicationIdSuffix '.qa'
+            minSdkVersion rootProject.ext.minSdkVersion
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 12 // qa
+            versionName "0.8.0" // qa
+        }
+        staging {
+            applicationIdSuffix '.staging'
+            minSdkVersion rootProject.ext.minSdkVersion
+            targetSdkVersion rootProject.ext.targetSdkVersion
+            versionCode 12 // staging
+            versionName "0.8.0" // staging
         }
     }
     // applicationVariants are e.g. debug, release

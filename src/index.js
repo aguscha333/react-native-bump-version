@@ -2,107 +2,96 @@
 
 const fs = require('fs')
 const chalk = require('chalk')
-const prompts = require('prompts')
-const semver = require('semver')
 
 const configMap = new Map([
   ['androidPath', './android/app/build.gradle'],
   ['iosPath', './ios/MyApp/Info.plist'],
 ])
 
-const ANDROID_REGEX = /versionName "([.|\d]+)"/
-const IOS_REGEX = /\s\<key\>CFBundleShortVersionString\<\/key\>\n\s+\<string\>(.+)\<\/string\>/m
+const IOS_VERSION_NUMBER_REGEX = /\<key\>CFBundleShortVersionString\<\/key\>\n\s+\<string\>(.+)\<\/string\>/m
+const IOS_BUILD_NUMBER_REGEX = /\<key\>CFBundleVersion\<\/key\>\n\s+\<string\>(.+)\<\/string\>/m
 
-function checkSemver(maybeSemver) {
-  if (!semver.valid(maybeSemver)) {
-    throw new Error(`Current version string is not semver: ${maybeSemver}`)
-  }
+function getAndroidVersionNameRegex(env) {
+  return new RegExp(`versionName "([.|\\d]+)" // ${env}`)
 }
 
-function getAndroidVersion() {
+function getAndroidVersionCodeRegex(env) {
+  return new RegExp(`versionCode \\d+ // ${env}`)
+}
+
+function getAndroidVersionCode(env) {
   const file = fs.readFileSync(configMap.get('androidPath'), 'utf8')
-  const [_, current] = file.match(ANDROID_REGEX)
-  checkSemver(current)
-  return current
+  const [currentLine] = file.match(getAndroidVersionCodeRegex(env))
+  const [current] = currentLine.match(/\d+/)
+  return parseInt(current)
 }
 
-function getIOSVersion() {
+function getIosVersion() {
   const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
-  const [_, current] = file.match(IOS_REGEX)
-  checkSemver(current)
+  const [_, current] = file.match(IOS_VERSION_NUMBER_REGEX)
   return current
 }
+function getIosBuild() {
+  const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
+  const [_, current] = file.match(IOS_BUILD_NUMBER_REGEX)
+  return parseInt(current)
+}
 
-function android(releaseType) {
-  const current = getAndroidVersion()
+function android(env, next) {
+  const currentVersionCode = getAndroidVersionCode(env)
+  const nextVersionCode = currentVersionCode + 1
   const file = fs.readFileSync(configMap.get('androidPath'), 'utf8')
-  const next = semver.inc(current, releaseType)
-  const updated = file.replace(ANDROID_REGEX, `versionName "${next}"`)
+  let updated = file.replace(getAndroidVersionNameRegex(env), `versionName "${next}" // ${env}`)
+  updated = updated.replace(
+    getAndroidVersionCodeRegex(env),
+    `versionCode ${nextVersionCode} // ${env}`,
+  )
   fs.writeFileSync(configMap.get('androidPath'), updated, 'utf8')
 
-  console.log(chalk.green(`Android SUCCESS! ${current} -> ${next}`))
+  console.log(
+    chalk.green(`Android SUCCESS! new version is ${next} with version code ${nextVersionCode}`),
+  )
 }
 
-function ios(releaseType) {
-  const current = getIOSVersion()
+function ios(next) {
+  const currentVersion = getIosVersion()
+  const currentBuild = getIosBuild()
+  const nextBuild = currentVersion === next ? currentBuild + 1 : 1
   const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
-  const next = semver.inc(current, releaseType)
-  const updated = file.replace(`<string>${current}</string>`, `<string>${next}</string>`)
+  let updated = file.replace(
+    IOS_VERSION_NUMBER_REGEX,
+    `<key>CFBundleShortVersionString</key>\n  <string>${next}</string>`,
+  )
+  updated = updated.replace(
+    IOS_BUILD_NUMBER_REGEX,
+    `<key\>CFBundleVersion\<\/key\>\n  <string>${nextBuild}</string>`,
+  )
   fs.writeFileSync(configMap.get('iosPath'), updated, 'utf8')
 
-  console.log(chalk.green(`iOS SUCCESS! ${current} -> ${next}`))
+  console.log(chalk.green(`iOS SUCCESS! new version is ${next} with build number ${nextBuild}`))
 }
 
-function run() {
-  configure()
-  if (!validate()) {
-    process.exit(1)
-  }
-  prompts({
-    type: 'select',
-    name: 'releaseType',
-    message: `Which version is the next release? (current is ${getIOSVersion()})`,
-    choices: [
-      { title: 'Major', value: 'major' },
-      { title: 'Minor', value: 'minor' },
-      { title: 'Patch', value: 'patch' },
-    ],
-    initial: 0,
-  }).then(({ releaseType }) => {
-    if (!releaseType) {
-      process.exit(2)
-    }
-    android(releaseType)
-    ios(releaseType)
-  })
-}
-
-function validate() {
-  if (!fs.existsSync(configMap.get('androidPath'))) {
-    console.log(chalk.red(`Error: androidPath ${configMap.get('androidPath')} does not exist`))
-    return false
-  }
-  if (!fs.existsSync(configMap.get('iosPath'))) {
-    console.log(chalk.red(`Error: iosPath ${configMap.get('iosPath')} does not exist`))
-    return false
-  }
-  return true
-}
-
-function configure(configFilePath = `${process.cwd()}/rnbv.config.js`) {
+function configure(env, configFilePath = `${process.cwd()}/rnbv.config.js`) {
   if (fs.existsSync(configFilePath)) {
     const config = require(`${process.cwd()}/rnbv.config.js`)
     for (key of configMap.keys()) {
-      if (config[key]) {
-        configMap.set(key, config[key])
+      if (config[`${key}-${env}`] || config[key]) {
+        configMap.set(key, config[`${key}-${env}`] || config[key])
       }
     }
   }
 }
 
+function run() {
+  const [env = 'dev', version] = process.argv.filter((arg) => !arg.startsWith('/'))
+
+  configure(env)
+
+  android(env, version)
+  ios(version)
+}
+
 module.exports = {
   run,
   configure,
-  getAndroidVersion,
-  getIOSVersion,
 }
