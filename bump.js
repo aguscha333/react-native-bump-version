@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 const fs = require('fs')
+const yargs = require('yargs/yargs')
+const { hideBin } = require('yargs/helpers')
+const semver = require('semver')
 
 const configMap = new Map([
   ['androidPath', './android/app/build.gradle'],
@@ -16,6 +19,14 @@ function getAndroidVersionNameRegex(env) {
 
 function getAndroidVersionCodeRegex(env) {
   return new RegExp(`versionCode \\d+ // ${env}`)
+}
+
+function getAndroidVersionName(env) {
+  const file = fs.readFileSync(configMap.get('androidPath'), 'utf8')
+  const [currentLine] = file.match(getAndroidVersionNameRegex(env))
+  console.log(currentLine)
+  const [current] = currentLine.match(/[.|\d]+/)
+  return current
 }
 
 function getAndroidVersionCode(env) {
@@ -36,11 +47,18 @@ function getIosBuild() {
   return parseInt(current, 0)
 }
 
-function android(env, next) {
+function android(env, next, type) {
+  const current = getAndroidVersionName(env)
+  const nextVersion = next || semver.inc(current, type)
+
   const currentVersionCode = getAndroidVersionCode(env)
   const nextVersionCode = currentVersionCode + 1
+
   const file = fs.readFileSync(configMap.get('androidPath'), 'utf8')
-  let updated = file.replace(getAndroidVersionNameRegex(env), `versionName "${next}" // ${env}`)
+  let updated = file.replace(
+    getAndroidVersionNameRegex(env),
+    `versionName "${nextVersion}" // ${env}`,
+  )
   updated = updated.replace(
     getAndroidVersionCodeRegex(env),
     `versionCode ${nextVersionCode} // ${env}`,
@@ -48,17 +66,20 @@ function android(env, next) {
   fs.writeFileSync(configMap.get('androidPath'), updated, 'utf8')
 
   // eslint-disable-next-line no-console
-  console.log(`Android SUCCESS! new version is ${next} with version code ${nextVersionCode}`)
+  console.log(`Android SUCCESS! new version is ${nextVersion} with version code ${nextVersionCode}`)
 }
 
-function ios(next) {
-  const currentVersion = getIosVersion()
+function ios(next, type) {
+  const current = getIosVersion()
+  const nextVersion = next || semver.inc(current, type)
+
   const currentBuild = getIosBuild()
-  const nextBuild = currentVersion === next ? currentBuild + 1 : 1
+  const nextBuild = current === nextVersion ? currentBuild + 1 : 1
+
   const file = fs.readFileSync(configMap.get('iosPath'), 'utf8')
   let updated = file.replace(
     IOS_VERSION_NUMBER_REGEX,
-    `<key>CFBundleShortVersionString</key>\n  <string>${next}</string>`,
+    `<key>CFBundleShortVersionString</key>\n  <string>${nextVersion}</string>`,
   )
   updated = updated.replace(
     IOS_BUILD_NUMBER_REGEX,
@@ -67,7 +88,7 @@ function ios(next) {
   fs.writeFileSync(configMap.get('iosPath'), updated, 'utf8')
 
   // eslint-disable-next-line no-console
-  console.log(`iOS SUCCESS! new version is ${next} with build number ${nextBuild}`)
+  console.log(`iOS SUCCESS! new version is ${nextVersion} with build number ${nextBuild}`)
 }
 
 function configure(env, configFilePath = `${process.cwd()}/rnbv.config.js`) {
@@ -84,13 +105,15 @@ function configure(env, configFilePath = `${process.cwd()}/rnbv.config.js`) {
 }
 
 function run() {
-  const [env = 'dev', version] = process.argv.filter((arg) => !arg.startsWith('/'))
+  const { ENV, next, type } = yargs(hideBin(process.argv)).argv
 
-  configure(env)
+  configure(ENV)
 
-  android(env, version)
-  ios(version)
+  android(ENV, next, type)
+  ios(next, type)
 }
+
+run()
 
 module.exports = {
   run,

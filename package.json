@@ -6,10 +6,10 @@
   "author": "gosho-kazuya <ketsume0211@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "bump:dev": "./bump.js dev",
-    "bump:qa": "./bump.js qa",
-    "bump:staging": "./bump.js staging",
-    "bump:prod": "./bump.js prod"
+    "bump:dev": "./bump.js --ENV dev",
+    "bump:qa": "./bump.js --where qa",
+    "bump:staging": "./bump.js --where staging",
+    "bump:prod": "./bump.js --where prod"
   },
   "dependencies": {
     "semver": "^7.3.2",

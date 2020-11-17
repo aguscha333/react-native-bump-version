@@ -1,0 +1,21 @@
+name: Auto merge releases
+
+on:
+  pull_request:
+    types: [labeled]
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    name: Merge
+    steps:
+      - name: Integration check
+        uses: squalrus/merge-bot@v0.1.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GHA_TOKEN }}
+          test: true
+          reviewers: false
+          labels: release
+          blocking_labels: do not merge
+          checks_enabled: true
+          method: merge
+          delete_source_branch: true

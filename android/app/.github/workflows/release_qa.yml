@@ -1,0 +1,39 @@
+# TODO: checkout into a release branch from develop
+# TODO: run the bump script for dev and qa
+# TODO: create a new commit with the changes
+# TODO: create a new PR to dev and qa
+# TODO: automatically merge PRs if there is no conflict
+# TODO: create tag if merges succeed
+
+name: QA Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      next-version:
+        description: Next
+        required: true
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: bump dev
+        run: |
+          npm run bump:dev --next ${{ github.event.inputs.next-version }}
+      - name: bump qa
+        run: |
+          npm run bump:qa --next ${{ github.event.inputs.next-version }}
+      - name: Create Pull Request to develop
+        id: dev-pr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GHA_TOKEN }}
+          commit-message: 'release: ${{ github.event.inputs.next-version }}'
+          delete-branch: true
+          branch: release/${{ github.event.inputs.next-version }}
+          base: develop
+          title: 'release: ${{ github.event.inputs.next-version }}'
+          body: 'New release is out! This PR will be merged automatically if no conflicts arise'
